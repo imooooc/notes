@@ -1,5 +1,7 @@
 # webpack 学习笔记
 
+## Babel 
+
 - 先创建一个项目，然后用babel和webpack打包这个项目，我们把下面的文件放入src目录下：
 
   - index.html
@@ -125,5 +127,436 @@
 
 > babel是一个js编译工具（javascript compiler）主要功能就是在最新或者较早版本的浏览器中把ECMAScript2015+的代码转换成向后兼容的JavaScript代码，但是它毕竟只能处理js文件，那css文件和图片等文件怎么办呢？
 
-未完待续...
+
+
+## Webpack 
+
+#### 什么是Webpack？
+
+webpack是一个静态模块打包器，static module bundler，它可以将我们需要用到的静态模块整合到一个文件中。
+
+#### webpack 小试牛刀
+
+- 初始化项目
+
+  创建一个项目,src目录里有：
+
+  - index.js
+  - module.js
+
+  src同级下有个html引用 了index.js，index.js又引用了module.js
+
+  初始化命令：
+
+  ```bash
+  npm init 
+  ```
+
+  项目中会自动生成一个config.json的配置文件
+
+- 安装webpack所需要的包
+
+  需要用到的包有`webpack-cli`,`webpack`
+
+  ```bash
+  npm install --save-dev webpack-cli webpack
+  ```
+
+  查看config.json文件
+
+  ```json
+    "devDependencies": {
+      "webpack": "^5.51.1",
+      "webpack-cli": "^4.8.0"
+    }
+  ```
+
+  
+
+- 配置webpack
+
+  在根目录下创建webpack.config.js文件
+
+  ```js
+  const path = require('path');
+  
+  module.exports = {
+    entry: './src/index.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'), //dist目录下生成一个bundle.js的文件
+      filename:'bundle.js'
+    }
+  }
+  ```
+
+  
+
+- 打包并测试
+
+  修改pakage.json
+
+  ```json
+  {
+    ...
+    "scripts":{
+      //"build":"babel src -d lib,"
+      "webpack":"webpack --config webpack.config.js"
+    }
+    ...
+  }
+  ```
+
+  运行命令
+
+  ```bash
+  npm run webpack
+  ```
+
+  项目中会会生成一个dist目录，里面有打包好的bundle.js模块
+
+  修改index.html
+
+  ```html
+  <script src="../dist/bundle.js"></script>
+  ```
+
+  查看浏览器console，也能正常运行js脚本
+
+#### webpack四个核心概念
+
+###### entry
+
+打包的入口
+
+- 单入口
+
+  ```js
+  module.exports = {
+    ...
+    entry: '../src/index.js'
+    ...
+  }
+  ```
+
+  
+
+- 多入口
+
+  ```js
+  module.exports = {
+    ...
+    entry:{
+      main: '../src/index.js',
+      search: '../src/search.js',
+      ...
+    }
+    ...
+  }
+  ```
+
+###### output
+
+打包结果的出口
+
+```js
+module.exports = {
+  ...
+  output:{
+    path: path.resolve('__dirname', dist), //绝对路径
+    filename: 'bundle.js' //生成文件的文件名
+  }
+  ...
+}
+```
+
+当有多个入口时：
+
+```js
+module.exports = {
+  ...
+  entry:{
+    main: '../src/index.js',
+    search: '../src/search.js',
+    ...
+  },
+  output:{
+    path: path.resolve('__dirname', dist),
+    filename: [name].js  //main.js search.js
+  }
+  ...
+}
+```
+
+
+
+###### loader
+
+loader能够让webpack拥有处理非js模块的能力，这里使用babel-loader作为示范，babel-loader可以让webpack使用babel，babel负责将代码进行编译，将ES6语法转换成ES5语法，然后交由webpack进行打包
+
+- 安装所需要的包
+
+  ```bash
+  npm install --save-dev babel-loader @babel/core @babel/preset-env
+  ```
+
+- 添加babel配置文件`.babelrc`
+
+  ```json
+  {
+   "presets":["@ babel/preset-env"]
+  }
+  ```
+
+- 在webpack.config.js中对loader进行配置
+
+  ```js
+  const path = require('path');
+  
+  module.exports = {
+    mode: "development",
+    entry: "./src/index.js",
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: 'bundle.js'
+    },
+    module:{
+  		rules: [{
+    		test: /\.js$/,  //检测哪些文件需要使用loader
+    		exclude: /node_modules/, //将一些不需要处理的文件事先排除
+    		loader: 'babel-loader' // 指定具体的loader
+  		},
+    	{...},
+      {...}]  
+  	}
+  }
+  ```
+  
+
+虽然babel-loader可以编译如const,let等语法，但是不能转换类似于Array.from()，Promise等API，可以安装`core-js`来实现目的
+
+```bash
+npm install --save-dev core-js
+```
+
+然后再添加下面的语句到index.js文件的顶部
+
+```js
+import 'core-js/stabel'
+```
+
+最后重新生成即可
+
+```bash
+npm run webpack
+```
+
+观察dist/index.js的变化
+
+更多loader工具可以查看[webpack官网](https://webpackjs.com/loaders)，或者搜索其他第三方loader
+
+###### plugins  
+
+loader 是用来转换某些模块的，而plugin插件则是用来执行更加广泛的任务，官网给出了[很多插件](https://webpackjs.com/plugins)，不需要全部记住，需要用到再了解
+
+这里使用html-webpack-plugin演示如何配置插件
+
+- 安装html-webpack-plugin插件
+
+  ```bash
+  npm install --save-dev html-webpack-plugin 
+  ```
+
+- 在webpack.config.js中配置插件
+
+  ```js
+  const path = require('path');
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  
+  module.exports = {
+    mode: 'development',
+    entry: './scr/index.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: 'bundle.js'
+    },
+    plugins: [
+      new HtmlWebpackPlugin({template: './index.html'})
+    ]
+  };
+  ```
+
+- 最后运行命令，生成结果
+
+  ```bash
+  npm run webpack 
+  ```
+
+  可以看到在dist目录中有一个index.html文件，并且该文件能够正常引用index.js文件
+
+那如果是多入口怎么实现plugin呢，其实只要有几个入口就实例化几个HtmlWebpackPlugin就好了,还有一点需要注意，就是多入口会生成的多个html，所以需要添加`filename`属性以示区分，否则就会造成多个文件覆盖成一个文件
+
+- webpack.config.js
+
+  ```js
+  const path = require('path');
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  
+  module.exports = {
+    mode: 'development',
+    entry: {
+      main: './src/index.js',
+      search: './src/search.js'
+    } ,
+    output: {
+    	path: path.resolve(__dirname, 'dist'),
+      filename: '[name].js'
+  	},
+    plugins: [
+      new HtmlWebpackPlugin({template: './index.html', filename: 'index.html'}),
+      new HtmlWebpackPlugin({template: './search.html', filename: 'search.html'})
+    ] 
+  }
+  ```
+
+- 运行命令生成结果
+
+  ```bash
+  npm run webpack
+  ```
+
+此时dist会有两个html文件，`index.html`,`search.html`，**但是**引用了`index.js`和`search.js`，这可能不是想要的结果，怎样让`index.html`只引用`index.js`,`search.html`只引用`search.js`呢？答案就是使用`chunks`属性
+
+- Webpack.config.js
+
+  ```js
+  const path = require('path');
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  
+  module.exports = {
+    mode: 'development',
+    entry: {
+      main: './src/index.js',
+      search: './src/search.js'
+    }
+    output: {
+    	path: path.resolve(__dirname, 'dist'),
+      filename: '[name].js'
+  	},
+    plugins: [
+      new HtmlWebpackPlugin({template: './index.html', filename: 'index.html', chunks: ['main']}),  //chunks是一个数组，元素是entry对象中的属性
+      new HtmlWebpackPlugin({template: './search.html', filename: 'search.html', chunks: ['search']})
+    ]
+  }
+  ```
+
+- 运行命令生成结果
+
+  ```bash
+  npm run webpack 
+  ```
+
+  然后可以观察dist中的`index.html`和`search.html`**分别** 引用了`index.js`和`search.js`
+
+html-webpack-plugins的其他功能
+
+- webpack.config.js
+
+  ```js
+  ...
+  
+  module.exports = {
+    ...
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: './index.html', 
+        filename: 'index.html', 
+        chunks: ['main']}),  //chunks是一个数组，元素是entry对象中的属性
+        minify:{
+      		removeContents: true, //删除index.html中的注释
+     			collapseWhitespace: true, //删除index.html中的空格
+      		removeAttributeQuotes:true //删除标签属性值的双引号
+      	}
+      new HtmlWebpackPlugin({
+        template: './search.html', 
+        filename: 'search.html', 
+        chunks: ['search']})
+    ]
+    ...
+    
+  }
+  ```
+
+  
+
+#### 处理css文件
+
+可以使用css-loader将css文件引入js文件，然后再使用style-loader将解析内容，实际上就是把css通过`<style>`内联的方式嵌入到html中
+
+- 安装css-loader和style-loader
+
+  ```bash
+  npm install css-loader style-loader
+  ```
+
+- webpack.config.js
+
+  ```js
+  const path = require('path')
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  
+  module.exports = {
+    mode: 'development',
+    entry: './src/index.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filenaem: '[name.js]' //默认是main.js
+    }，
+    module: {
+    	rules: [
+    		test: /\.css&/,
+    		//loader: 'css-loader' 只使用css-loader只是做了将css文件引入到js中，并没有进行解析
+    		use: [ 'style-loader', 'css-loader'] // style-loader <-- css-loader 先引入在解析，注意顺序
+    	]
+  	},
+    plugins: [
+      ...
+    ]
+  }
+  ```
+
+还有一种方法，可以将css以link标签导入到html页面中，需要使用到插件`mini-css-extract-plugin`,它能将css文件提取出来放在生成的结果中，然后再使用`<link>`标签嵌入到html中
+
+- 安装插件
+
+  ```bash
+  npm install --save-dev mini-css-extract-plugin
+  ```
+
+- 修改webpack.config.js
+
+  ```js
+  const path = require('path');
+  const HtmlWebpackPlugin = require('html-webpack-plugin');
+  const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+  
+  module.exports = {
+    ...
+    module:{
+      rules: [
+        test: /\.css$/,
+        use: [MiniCssExtractPlugin.loader, 'css-loader'] //详细使用方法查看官方文档
+      ]
+    },
+    plugins: [
+      new HtmlWebpackPlugin({template:'./index.html'}, filename: 'index.html'),
+      new MiniCssExtratPlugin({filename: 'css/[name].css'}) // 会生成dist/css目录下的main.css文件
+    ]
+  }
+  ```
+
+  
+
+#### 处理file文件
+
+
 

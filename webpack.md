@@ -120,12 +120,13 @@
   function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { "default": obj }; }
   
   var str2 = 'text from index.js';
-  exports.str2 = str2;
+  exports.str2 = str2
   ```
 
-  
 
-> babel是一个js编译工具（javascript compiler）主要功能就是在最新或者较早版本的浏览器中把ECMAScript2015+的代码转换成向后兼容的JavaScript代码，但是它毕竟只能处理js文件，那css文件和图片等文件怎么办呢？
+babel是一个js编译工具（javascript compiler）主要功能就是在最新或者较早版本的浏览器中把ECMAScript2015+的代码转换成向后兼容的JavaScript代码，但是它毕竟只能处理js中的语法转换问题，一些模块语法，ES6新增的API还是没法处理，css和图片等非js文件也没法处理。
+
+[相关文档](https://babeljs.io/setup)
 
 
 
@@ -303,7 +304,7 @@ loader能够让webpack拥有处理非js模块的能力，这里使用babel-loade
 
   ```json
   {
-   "presets":["@ babel/preset-env"]
+   "presets":["@babel/preset-env"]
   }
   ```
 
@@ -513,9 +514,11 @@ html-webpack-plugins的其他功能
     }，
     module: {
     	rules: [
-    		test: /\.css&/,
-    		//loader: 'css-loader' 只使用css-loader只是做了将css文件引入到js中，并没有进行解析
-    		use: [ 'style-loader', 'css-loader'] // style-loader <-- css-loader 先引入在解析，注意顺序
+    		{
+    			test: /\.css&/,
+    			//loader: 'css-loader' 只使用css-loader只是做了将css文件引入到js中，并没有进行解析
+    			use: [ 'style-loader', 'css-loader'] // style-loader <-- css-loader 先引入在解析，					注意顺序
+  			}
     	]
   	},
     plugins: [
@@ -543,8 +546,10 @@ html-webpack-plugins的其他功能
     ...
     module:{
       rules: [
-        test: /\.css$/,
-        use: [MiniCssExtractPlugin.loader, 'css-loader'] //详细使用方法查看官方文档
+        {
+          test: /\.css$/,
+        	use: [MiniCssExtractPlugin.loader, 'css-loader'] //详细使用方法查看官方文档
+        }
       ]
     },
     plugins: [
@@ -553,10 +558,165 @@ html-webpack-plugins的其他功能
     ]
   }
   ```
-
+  
   
 
 #### 处理file文件
 
+当css中引入了图片资源的时候，最简单的例子如:
 
+```css
+background-image: url('https://domain/xx.png')
+background-image: url(./img/xxx.png)
+```
+
+对于上面这种资源并非来自本地的情况，并不需要考虑用webpack处理，主要是下面这种使用了**本地资源**的时候，和处理js和css文件的方式类似，我们也可以使用相关的loader来处理图片类型的文件，file-loader就是干这个的。
+
+- 安装file-loader
+
+  ```bash
+  npm install --save-dev file-loader
+  ```
+
+- 修改webpack.config.js
+
+  ```js
+  const path = require('path');
+  
+  
+  module.exports = {
+    mode: 'development',
+    entry: './src/index.js',
+    output: {
+      path: path.resolve(__dirname, 'dist'),
+      filename: '[name].js'
+    }
+    module: {
+    	rules: [
+    		{
+    			test:/\.(png|jpg|gif)$/,
+    		  loader: 'file-loader',
+    			options: {
+    				name: '../[name].[ext]'
+    			//	name(){
+          //    if (env === 'development'){
+          //      return '[path]/[name].[ext]'
+          //    }
+          //    return '[hash]/[name].[ext]'
+          //  }
+  				}
+  			}
+    	]
+  	}
+  }
+  ```
+
+#### 处理HTML文件
+
+有时候html文件中会引用图片，比如：
+
+```html
+<body>
+  <img src="img/xx.png" />
+</body>
+```
+
+由于html文件只会当成模板，那这些图片将无法被处理。解决办法就是使用`html-withimg-loader`，它能够找到html中的图片，然后仍然是交由`file-loader`进行处理
+
+- 安装`html-withimg-loader`,`file-loader`
+
+  ```bash
+  npm install --save-dev html-withimg-loaser file-loader
+  ```
+
+- 修改webpack.config.js
+
+  ```js
+  ...
+  module: {
+    rules:[
+      {
+        ...
+      },
+      {
+       test: /\.(jpg|png|gif)$/,
+       use: {
+        	loader: 'file-loader',
+        	options: {
+        		name: 'img/[name].[ext]',
+        		esModule: false // 重要！！！file-loader默认导出的是es模块，要把它改成false
+      		}
+      	}
+      }
+      {
+        test: /\.(htm|html)$/,
+      	loader: 'html-withimg-loader'
+      }
+    ]
+  }
+  ...
+  ```
+
+上面是处理HTML中图片的方式，那如果要处理js中的图片就要 使用`url-loader`
+
+- 安装url-loader
+
+  ```bash
+  npm install url-loader
+  ```
+
+- 修改webpack.config.js文件，把file-loader改成url-loader
+
+  ```js
+  ...
+  module: {
+    rules:[
+      {
+        ...
+      },
+      {
+       test: /\.(jpg|png|gif)$/,
+       use: {
+        	//loader: 'file-loader',
+        	loader: 'url-loader',
+        	options: {
+        		name: 'img/[name].[ext]',
+        		esModule: false 
+        		limit:10000 //小于10k的图片转换成base64格式
+      		}
+      	}
+      }
+    ]
+  }
+  ...
+  ```
+
+  
+
+#### webpack-dev-server 
+
+使用webpack-dev-server可以自动完成自动打包，这样就可以避免每次修改代码后频繁地手动打包了
+
+- 安装
+
+  ```bash
+  npm install webpack-dev-server
+  ```
+
+- 修改package.json
+
+  ```js
+  ...
+  {
+    ...
+    "scripts": {
+      "webpack":"webpack",
+      "dev": "webpack-dev-server --open chrome "  //执行命令会自动打包并打开浏览器
+    }
+    ...
+  }
+  ...
+  ```
+
+具体参数配置见[文档](https://webpackjs.com/configuration/dev-server)
 

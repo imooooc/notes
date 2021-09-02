@@ -695,7 +695,7 @@ background-image: url(./img/xxx.png)
 
 #### webpack-dev-server 
 
-使用webpack-dev-server可以自动完成自动打包，这样就可以避免每次修改代码后频繁地手动打包了
+使用webpack-dev-server可以完成自动打包，这样就可以避免每次修改代码后频繁地手动打包了
 
 - 安装
 
